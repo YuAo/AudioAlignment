@@ -14,6 +14,10 @@ let reference = try AudioFingerprint(audioURL: URL(fileURLWithPath: "reference.m
 let timeOffset = try sample.align(with: reference).estimatedTimeOffset
 ```
 
+## Documentation
+
+[API Reference](https://yuao.github.io/AudioAlignment/Documentation/AudioAlignment)
+
 ## Swift Package
 
 To use this package in a SwiftPM project, add the following line to the dependencies in your Package.swift file:
