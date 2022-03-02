@@ -34,6 +34,10 @@ Audio fingerprint generation is approximatelly 60ms per minute audio on a 2019 I
 
 [ranwsn/Audio_Snippets_Alignment](https://github.com/ranwsn/Audio_Snippets_Alignment)
 
+### Dejavu
+
+[worldveil/dejavu](https://github.com/worldveil/dejavu)
+
 ### Example Audio
 
 Endless Light
