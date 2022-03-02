@@ -30,7 +30,7 @@ To use this package in a SwiftPM project, add the following line to the dependen
 
 [Accelerate](https://developer.apple.com/documentation/accelerate/) is used to boost performance.
 
-Audio fingerprint generation is approximatelly 60ms per minute audio on a 2019 Intel iMac with i5 processor (in release mode). 
+For a one-minute audio, the fingerprint generation takes approximately 60ms on a 2019 Intel iMac with i5 processor (in release mode).
 
 ## Acknowledgements
 
