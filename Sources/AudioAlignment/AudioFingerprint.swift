@@ -3,7 +3,7 @@ import Accelerate
 import OSLog
 
 /// A shift-invariant, spectrum based fingerprint of an audio clip.
-public struct AudioFingerprint {
+public struct AudioFingerprint: Hashable, Sendable {
     
     private static let log = OSLog(subsystem: "com.imyuao.audio-alignment.fingerprint", category: "performance")
     
@@ -26,7 +26,7 @@ public struct AudioFingerprint {
     }
     
     /// Short-time Fourier transform configuration.
-    public struct STFTConfiguration: Hashable {
+    public struct STFTConfiguration: Hashable, Sendable {
         public init(segment: Int = 1024, overlap: Int = Int(0.9 * 1024)) {
             self.segment = segment
             self.overlap = overlap
@@ -40,7 +40,7 @@ public struct AudioFingerprint {
     }
     
     /// A configuration that controls peek generation.
-    public struct PeaksConfiguration: Hashable {
+    public struct PeaksConfiguration: Hashable, Sendable {
         public init(localMaximumKernelSize: Int = 5, maximumAmplitudeApproximatePercentile: Float = 0.999, relativeMinimumAmplitude: Float = -35, minimumFrequency: Frequency = 50, maximumFrequency: Frequency = 5000) {
             self.localMaximumKernelSize = localMaximumKernelSize
             self.maximumAmplitudeApproximatePercentile = maximumAmplitudeApproximatePercentile
@@ -66,7 +66,7 @@ public struct AudioFingerprint {
     }
     
     /// A configuration that controls pattern generation.
-    public struct PatternsConfiguration: Hashable {
+    public struct PatternsConfiguration: Hashable, Sendable {
         public init(fan: Int = 10, minimumSamplePositionDelta: SamplePosition = 0, maximumSamplePositionDelta: SamplePosition = 8000) {
             self.fan = fan
             self.minimumSamplePositionDelta = minimumSamplePositionDelta
@@ -84,7 +84,7 @@ public struct AudioFingerprint {
     }
     
     /// A configuration that controls the fingerprint generation.
-    public struct Configuration: Hashable {
+    public struct Configuration: Hashable, Sendable {
         public init(sampleRate: Double = 16000, stftConfiguration: AudioFingerprint.STFTConfiguration = STFTConfiguration(), peaksConfiguration: AudioFingerprint.PeaksConfiguration = PeaksConfiguration(), patternsConfiguration: AudioFingerprint.PatternsConfiguration = PatternsConfiguration()) {
             self.sampleRate = sampleRate
             self.stftConfiguration = stftConfiguration
@@ -110,18 +110,18 @@ public struct AudioFingerprint {
         }
     }
     
-    private struct Spectrum {
+    private struct Spectrum: Hashable, Sendable {
         var frequencies: [Frequency]
         var positions: [SamplePosition]
         var stft: [Float]
     }
     
-    private struct Peak {
+    private struct Peak: Hashable, Sendable {
         var frequency: Frequency
         var position: SamplePosition
     }
     
-    private struct Pattern: Hashable {
+    private struct Pattern: Hashable, Sendable {
         var frequencyA: Frequency
         var frequencyB: Frequency
         var positionDelta: SamplePosition
@@ -408,7 +408,7 @@ extension AudioFingerprint {
 extension AudioFingerprint {
     
     /// Options that control the fingerprint alignment.
-    public struct FittingOptions {
+    public struct FittingOptions: Hashable, Sendable {
         public init(timeResolution: Float = 0.001, timeResolutionCoarse: Float = 0.1, focusInterval: Float = 5) {
             self.timeResolution = timeResolution
             self.timeResolutionCoarse = timeResolutionCoarse
@@ -431,7 +431,7 @@ extension AudioFingerprint {
     }
     
     /// Alignment information of two audio fingerprints.
-    public struct Alignment {
+    public struct Alignment: Hashable, Sendable {
         /// The estimated time offset of the source fingerprint relative to the start of the reference fingerprint.
         public var estimatedTimeOffset: Float
     }
