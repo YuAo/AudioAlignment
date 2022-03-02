@@ -16,7 +16,7 @@ let timeOffset = try sample.align(with: reference).estimatedTimeOffset
 
 ## Documentation
 
-[API Reference](https://yuao.github.io/AudioAlignment/Documentation/AudioAlignment)
+[API Reference](https://yuao.github.io/AudioAlignment/documentation/audioalignment)
 
 ## Swift Package
 
