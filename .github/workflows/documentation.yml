@@ -1,0 +1,52 @@
+name: Generate Documentation
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+
+    runs-on: macos-11
+
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Clone swift-docc
+      uses: actions/checkout@v2
+      with:
+        repository: apple/swift-docc
+        ref: release/5.6
+        path: swift-docc
+        
+    - name: Clone swift-docc-render
+      uses: actions/checkout@v2
+      with:
+        repository: apple/swift-docc-render
+        ref: release/5.6
+        path: swift-docc-render
+        
+    - name: Build swift-docc
+      run: |
+        cd swift-docc; swift build --product docc -c release; cd ..
+        
+    - name: Build swift-docc-render
+      run: |
+        cd swift-docc-render; npm install && npm run build; cd ..
+      
+    - name: Generate SymbolGraph
+      run: |
+        mkdir -p .build/symbol-graphs && swift build --target AudioAlignment -Xswiftc -emit-symbol-graph -Xswiftc -emit-symbol-graph-dir -Xswiftc .build/symbol-graphs
+    
+    - name: Run Docc
+      run: |
+        export DOCC_HTML_DIR="$(pwd)/swift-docc-render/dist" && swift-docc/.build/release/docc convert AudioAlignment.docc --fallback-display-name AudioAlignment --fallback-bundle-identifier com.imyuao.AudioAlignment --fallback-bundle-version 1 --additional-symbol-graph-dir .build/symbol-graphs --transform-for-static-hosting --hosting-base-path /AudioAlignment --output-path AudioAlignment.doccarchive 
+    
+    - name: Publish to GitHub Pages
+      uses: JamesIves/github-pages-deploy-action@4.1.1
+      with:
+        branch: gh-pages
+        folder: AudioAlignment.doccarchive
+        single-commit: true
