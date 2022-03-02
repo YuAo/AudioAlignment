@@ -233,7 +233,7 @@ extension AudioFingerprint {
         var window = [Float](repeating: 0, count: configuration.segment)
         vDSP_hann_window(&window, vDSP_Length(configuration.segment), Int32(vDSP_HANN_NORM))
         
-        let scale = 1.0 / window.reduce(0, +)
+        let scale = 1.0 / window.reduce(0, +) / 2.0 // `/ 2.0` : See https://developer.apple.com/library/archive/documentation/Performance/Conceptual/vDSP_Programming_Guide/UsingFourierTransforms/UsingFourierTransforms.html#//apple_ref/doc/uid/TP40005147-CH3-SW5
         
         let vScaleScale = [scale]
         let vScalar20: [Float] = [20]
@@ -264,6 +264,9 @@ extension AudioFingerprint {
                                       &splitComplex, 1,
                                       log2n,
                                       FFTDirection(kFFTDirection_Forward))
+                        
+                        // Blow away the packed nyquist component.
+                        imagPtr[0] = 0
                         
                         vDSP_zvabs(&splitComplex, 1, stftPtr, 1, vDSP_Length(complexValuesCount))
                         vDSP_vsmul(stftPtr, 1, vScaleScale, stftPtr, 1, vDSP_Length(complexValuesCount))
