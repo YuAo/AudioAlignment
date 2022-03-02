@@ -359,6 +359,12 @@ extension AudioFingerprint {
         precondition(values.count > 0)
         precondition(percetile >= 0 && percetile <= 1)
         
+        if percetile == 1 {
+            return values.max()!
+        } else if percetile == 0 {
+            return values.min()!
+        }
+        
         let (histogram, bins) = try AudioFingerprint.histogram(values, delta: delta)
         var pdf: Double = 0
         for (index, value) in histogram.enumerated() {
