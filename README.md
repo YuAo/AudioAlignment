@@ -23,7 +23,7 @@ let timeOffset = try sample.align(with: reference).estimatedTimeOffset
 To use this package in a SwiftPM project, add the following line to the dependencies in your Package.swift file:
 
 ```swift
-.package(url: "https://github.com/YuAo/AudioAlignment", from: "0.0.1"),
+.package(url: "https://github.com/YuAo/AudioAlignment.git", from: "1.0.0"),
 ```
 
 ## Performance
