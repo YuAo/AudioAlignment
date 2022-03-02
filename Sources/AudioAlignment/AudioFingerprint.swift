@@ -2,9 +2,10 @@ import AVFoundation
 import Accelerate
 import OSLog
 
+/// A shift-invariant, spectrum based fingerprint of an audio clip.
 public struct AudioFingerprint {
     
-    static let log = OSLog(subsystem: "com.imyuao.audio-alignment.fingerprint", category: "performance")
+    private static let log = OSLog(subsystem: "com.imyuao.audio-alignment.fingerprint", category: "performance")
     
     public typealias SamplePosition = Int32
     public typealias Frequency = Int32
@@ -24,42 +25,65 @@ public struct AudioFingerprint {
         case vImageMaxError(vImage_Error)
     }
     
+    /// Short-time Fourier transform configuration.
     public struct STFTConfiguration: Hashable {
         public init(segment: Int = 1024, overlap: Int = Int(0.9 * 1024)) {
             self.segment = segment
             self.overlap = overlap
         }
+        
+        /// Length of each segment, i.e. the number of samples in a STFT window.
         public var segment: Int
+        
+        /// Number of samples to overlap between segments.
         public var overlap: Int
     }
     
+    /// A configuration that controls peek generation.
     public struct PeaksConfiguration: Hashable {
-        public init(localMaximumKernelSize: Int = 5, relativeMinimumValue: Float = -35, minimumFrequency: Frequency = 50, maximumFrequency: Frequency = 5000, largestValueApproximatePercentile: Float = 0.999) {
-            //connectivity_mask, peak_neighborhood_size -> localMaximumKernelSize: 5
+        public init(localMaximumKernelSize: Int = 5, maximumAmplitudeApproximatePercentile: Float = 0.999, relativeMinimumAmplitude: Float = -35, minimumFrequency: Frequency = 50, maximumFrequency: Frequency = 5000) {
             self.localMaximumKernelSize = localMaximumKernelSize
-            self.relativeMinimumValue = relativeMinimumValue
+            self.maximumAmplitudeApproximatePercentile = maximumAmplitudeApproximatePercentile
+            self.relativeMinimumAmplitude = relativeMinimumAmplitude
             self.minimumFrequency = minimumFrequency
             self.maximumFrequency = maximumFrequency
-            self.largestValueApproximatePercentile = largestValueApproximatePercentile
         }
+        
+        /// Number of cells around an amplitude peak in the spectrogram to be considered a spectral peak.
         public var localMaximumKernelSize: Int
-        public var relativeMinimumValue: Float
+        
+        /// Percentile for approximating the maximum amplitude in the spectrogram.
+        public var maximumAmplitudeApproximatePercentile: Float
+
+        /// Minimum amplitude in the spectrogram to be considered a peak, relative to the maximum amplitude in the spectrogram.
+        public var relativeMinimumAmplitude: Float
+        
+        /// Minimum frequency of a sample in the spectrogram to be considered a peak.
         public var minimumFrequency: Frequency
+        
+        /// Maximum frequency of a sample in the spectrogram to be considered a peak.
         public var maximumFrequency: Frequency
-        public var largestValueApproximatePercentile: Float
     }
     
+    /// A configuration that controls pattern generation.
     public struct PatternsConfiguration: Hashable {
         public init(fan: Int = 10, minimumSamplePositionDelta: SamplePosition = 0, maximumSamplePositionDelta: SamplePosition = 8000) {
             self.fan = fan
             self.minimumSamplePositionDelta = minimumSamplePositionDelta
             self.maximumSamplePositionDelta = maximumSamplePositionDelta
         }
+        
+        /// Degree to which a peek can be paired with its neighbors.
         public var fan: Int
+        
+        /// How close peeks can be in order to be paired as a pattern.
         public var minimumSamplePositionDelta: SamplePosition
+        
+        /// How far peeks can be in order to be paired as a pattern.
         public var maximumSamplePositionDelta: SamplePosition
     }
     
+    /// A configuration that controls the fingerprint generation.
     public struct Configuration: Hashable {
         public init(sampleRate: Double = 16000, stftConfiguration: AudioFingerprint.STFTConfiguration = STFTConfiguration(), peaksConfiguration: AudioFingerprint.PeaksConfiguration = PeaksConfiguration(), patternsConfiguration: AudioFingerprint.PatternsConfiguration = PatternsConfiguration()) {
             self.sampleRate = sampleRate
@@ -67,11 +91,20 @@ public struct AudioFingerprint {
             self.peaksConfiguration = peaksConfiguration
             self.patternsConfiguration = patternsConfiguration
         }
+        
+        /// Sample rate used in fingerprint generation.
         public var sampleRate: Double
+        
+        /// Short-time Fourier transform configuration.
         public var stftConfiguration: STFTConfiguration
+        
+        /// Configuration that controls peek generation.
         public var peaksConfiguration: PeaksConfiguration
+        
+        /// Configuration that controls pattern generation.
         public var patternsConfiguration: PatternsConfiguration
         
+        /// The finest time resolution of this configuration.
         public var finestTimeResolution: Float {
             return Float(stftConfiguration.segment - stftConfiguration.overlap) / Float(sampleRate)
         }
@@ -88,23 +121,26 @@ public struct AudioFingerprint {
         var position: SamplePosition
     }
     
-    public struct Pattern: Hashable {
+    private struct Pattern: Hashable {
         var frequencyA: Frequency
         var frequencyB: Frequency
         var positionDelta: SamplePosition
     }
     
-    public typealias Patterns = [Pattern: SamplePosition]
+    private typealias Patterns = [Pattern: SamplePosition]
     
-    public let patterns: Patterns
+    private let patterns: Patterns
     
+    /// Configuration used to generate this fingerprint.
     public let configuration: Configuration
     
+    /// Creates an audio fingerprint from a file URL.
     public init(audioURL: URL, configuration: Configuration = Configuration()) throws {
         let sourceBuffer = try AudioFingerprint.decodeAudioFile(url: audioURL, commonFormat: .pcmFormatFloat32)
         try self.init(audioBuffer: sourceBuffer, configuration: configuration)
     }
     
+    /// Creates an audio fingerprint from a PCM buffer.
     public init(audioBuffer inAudioBuffer: AVAudioPCMBuffer, configuration: Configuration = Configuration()) throws {
         let audioBuffer = try AudioFingerprint.convertAudioBuffer(inAudioBuffer, commonFormat: .pcmFormatFloat32, sampleRate: configuration.sampleRate)
         let spectrum = try AudioFingerprint.makeSpectrum(audio: audioBuffer.floatChannelData!.pointee, sampleCount: Int(audioBuffer.frameLength), sampleRate: audioBuffer.format.sampleRate, configuration: configuration.stftConfiguration)
@@ -268,16 +304,9 @@ extension AudioFingerprint {
             })
         })
         
-        /*
-         var sortedStft = spectrum.stft
-         vDSP_vsort(&sortedStft, vDSP_Length(sortedStft.count), 1)
-         let largestValApprox: Float = sortedStft[Int(0.999 * Double(spectrum.stft.count))]
-         print("largestValApprox", largestValApprox)
-         */
+        let largestValApprox = try approximatePercetile(spectrum.stft, delta: 0.1, percetile: configuration.maximumAmplitudeApproximatePercentile)
         
-        let largestValApprox = try approximatePercetile(spectrum.stft, delta: 0.1, percetile: configuration.largestValueApproximatePercentile)
-        
-        let minValue = largestValApprox + configuration.relativeMinimumValue
+        let minValue = largestValApprox + configuration.relativeMinimumAmplitude
         
         var peaks: [Peak] = []
         for (index, value) in spectrum.stft.enumerated() where value == localMaximum[index] {
@@ -369,14 +398,21 @@ extension AudioFingerprint {
 
 extension AudioFingerprint {
     
+    /// Options that control the fingerprint alignment.
     public struct FittingOptions {
         public init(timeResolution: Float = 0.001, timeResolutionCoarse: Float = 0.1, focusInterval: Float = 5) {
             self.timeResolution = timeResolution
             self.timeResolutionCoarse = timeResolutionCoarse
             self.focusInterval = focusInterval
         }
+        
+        /// Time resolution used in the fingerprint alignment.
         public var timeResolution: Float
+        
+        /// Coarse time resolution used in the fingerprint alignment.
         public var timeResolutionCoarse: Float
+        
+        /// Focus interval, in seconds, for searching around the coarse alignment.
         public var focusInterval: Float
     }
     
@@ -385,10 +421,13 @@ extension AudioFingerprint {
         case fingerprintConfigurationMismatch
     }
     
+    /// Alignment information of two audio fingerprints.
     public struct Alignment {
+        /// The estimated time offset of the source fingerprint relative to the start of the reference fingerprint.
         public var estimatedTimeOffset: Float
     }
     
+    /// Align the fingerprint with a reference fingerprint.
     public func align(with reference: AudioFingerprint, options: FittingOptions = FittingOptions()) throws -> Alignment {
         os_signpost(.begin, log: AudioFingerprint.log, name: "fit")
         defer {
